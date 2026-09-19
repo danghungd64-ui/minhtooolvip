@@ -1,10 +1,13 @@
 # ============================================================
-#   LEMINH TOOL MD5 - VIP 2026 - WEBHOOK VERSION
+#   LEMINH TOOL MD5 - VIP 2026 - FINAL v7
+#   Zalo: 0372834763
+#   Mode: Webhook (chạy 24/7, không sleep)
 # ============================================================
 import os
 import re
 import html
 import hashlib
+import asyncio
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.constants import ParseMode
@@ -16,12 +19,15 @@ from telegram.ext import (
     ContextTypes,
 )
 
-# ---------------- CONFIG ----------------
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8934734495:AAGVXUK0muIIPK2XYJhzxwHJoaZNbysc-UY")
-RENDER_URL = os.getenv("RENDER_EXTERNAL_URL", "")  # Render tự set
+# ============================================================
+#   CONFIG
+# ============================================================
+BOT_TOKEN = os.getenv("8934734495:AAGVXUK0muIIPK2XYJhzxwHJoaZNbysc-UY", "")
+RENDER_URL = os.getenv("RENDER_EXTERNAL_URL", "")
 PORT = int(os.getenv("PORT", 10000))
 ZALO_PHONE = "0372834763"
 ZALO_URL = f"https://zalo.me/{ZALO_PHONE}"
+TIKTOK_URL = os.getenv("TIKTOK_URL", "https://www.tiktok.com/@gai.xinh.vn")
 SECRET_TOKEN = os.getenv("SECRET_TOKEN", "LEMINH_TOOL_VIP_2026_KEY")
 
 logging.basicConfig(
@@ -34,7 +40,7 @@ LINE = "─────────────"
 
 
 # ============================================================
-#   CÁC HÀM XỬ LÝ (giữ nguyên như bản trước)
+#   AUTO DETECT HASH TYPE
 # ============================================================
 def detect_hash_type(h: str):
     h = h.strip()
@@ -45,21 +51,46 @@ def detect_hash_type(h: str):
     return None
 
 
+# ============================================================
+#   THUẬT TOÁN VIP v7 - 30 VÒNG + 8 LỚP MIX
+# ============================================================
 def hash_to_score(h: str, htype: str) -> int:
     h = h.lower()
+
+    # LỚP 1: Weight động
     weight = 41 if htype == "MD5" else 53
-    salt1 = "LEMINH_VIP_2026_UPGRADE"
+
+    # LỚP 2: 6 nguồn entropy
+    salt1 = "LEMINH_VIP_2026_V7"
     salt2 = f"SEED_{len(h)}_{weight}"
     salt3 = "X9K2M7P4Q1"
+    salt4 = f"ROUND_{hashlib.md5(h.encode()).hexdigest()[:8]}"
+    salt5 = "ZK3L8N5W2Y7"
 
-    mixed = f"{h}::{SECRET_TOKEN}::{salt1}::{salt2}::{salt3}".encode()
+    mixed = (
+        f"{h}::{SECRET_TOKEN}::{salt1}::{salt2}::{salt3}::{salt4}::{salt5}"
+    ).encode()
 
-    for i in range(20):
-        if i % 2 == 0:
+    # LỚP 3: Băm 30 vòng xen kẽ 4 hash
+    for i in range(30):
+        r = i % 4
+        if r == 0:
             mixed = hashlib.sha512(mixed + str(i).encode() + salt1.encode()).digest()
-        else:
+        elif r == 1:
             mixed = hashlib.sha256(mixed + str(i).encode() + salt2.encode()).digest()
+        elif r == 2:
+            mixed = hashlib.blake2b(mixed + str(i).encode() + salt3.encode()).digest()
+        else:
+            mixed = hashlib.sha3_256(mixed + str(i).encode() + salt4.encode()).digest()
 
+    # LỚP 4: Avalanche - đảo bit 2 lần
+    bits = int.from_bytes(mixed[:8], "big")
+    bits = ((bits << 13) | (bits >> 51)) & 0xFFFFFFFFFFFFFFFF
+    bits ^= 0xA5A5A5A5A5A5A5A5
+    bits = ((bits << 7) | (bits >> 57)) & 0xFFFFFFFFFFFFFFFF
+    mixed = bits.to_bytes(8, "big") + mixed[8:]
+
+    # LỚP 5: Khuếch tán phi tuyến 3 lớp
     score = 0
     for i in range(0, len(mixed), 2):
         cb = mixed[i:i + 4]
@@ -68,12 +99,23 @@ def hash_to_score(h: str, htype: str) -> int:
         chunk = int.from_bytes(cb, "big")
         score = (score * weight + (chunk * chunk) % 9973 + chunk) % 100
         score = (score ^ (chunk % 97)) % 100
+        inv = pow(chunk % 89 + 1, 87, 89)
+        score = (score + inv) % 100
 
+    # LỚP 6: Bit-mix
     final_mix = int.from_bytes(hashlib.sha256(mixed).digest()[:8], "big")
     score = (score * 73 + final_mix) % 100
+
+    # LỚP 7: Modular arithmetic
+    score = (score * 97 + 43) % 100
+
+    # LỚP 8: Chuẩn hoá
     return abs(score) % 100
 
 
+# ============================================================
+#   DỰ ĐOÁN
+# ============================================================
 def predict(h: str) -> dict:
     h = h.strip()
     htype = detect_hash_type(h)
@@ -108,7 +150,8 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "→ Dự đoán <b>TÀI / XỈU</b>\n\n"
         f"{LINE}\n"
         "🔒 <b>Lệnh ẩn:</b>\n"
-        "• /hotro – Mở Zalo hỗ trợ\n"
+        "• /hotro – Zalo + TikTok\n"
+        "• /tiktok – TikTok gái xinh\n"
         "• /xoa – Xoá tin nhắn bot"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
@@ -116,16 +159,28 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_hotro(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = (
-        "📞 <b>HỖ TRỢ ZALO ADMIN</b>\n"
+        "📞 <b>HỖ TRỢ - GIẢI TRÍ</b>\n"
         f"{LINE}\n"
-        f"• SĐT: <code>{ZALO_PHONE}</code>\n"
-        f"• Link: {ZALO_URL}\n\n"
-        "👉 Bấm nút bên dưới để mở Zalo"
+        f"• Zalo: <code>{ZALO_PHONE}</code>\n"
+        f"• TikTok: {TIKTOK_URL}\n\n"
+        "👉 Bấm nút bên dưới"
     )
-    kb = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("💬 Mở Zalo Hỗ Trợ", url=ZALO_URL)]]
-    )
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💬 Zalo Hỗ Trợ", url=ZALO_URL)],
+        [InlineKeyboardButton("🎵 TikTok Gái Xinh", url=TIKTOK_URL)],
+    ])
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb)
+
+
+async def cmd_tiktok(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎵 Mở TikTok", url=TIKTOK_URL)]
+    ])
+    await update.message.reply_text(
+        f"🎵 <b>TIKTOK GÁI XINH</b>\n{LINE}\n{TIKTOK_URL}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=kb,
+    )
 
 
 async def cmd_xoa(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -138,7 +193,6 @@ async def cmd_xoa(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         text="🧹 <b>Đã xoá!</b> Gõ /start để bắt đầu lại.",
         parse_mode=ParseMode.HTML,
     )
-    import asyncio
     await asyncio.sleep(3)
     try:
         await msg.delete()
@@ -159,12 +213,12 @@ async def cmd_32(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_64(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = (
-        "📗 <b>HƯỚNG DẪN 64 KÝ TỰ (SHA-256)</b>\n"
-        f"{LINE}\n"
-        "• Chuỗi đúng <b>64</b> ký tự hex\n"
-        "• Ví dụ:\n"
-        "<code>e3b0c44298fc1c149afbf4c8996fb924"
-        "27ae41e4649b934ca495991b7852b855</code>"
+        "📗 <b>HƯỚNG DẪN 64 KÝ T"
+Ự (SHA-256)</b       >\n"
+        f"{LINE "}\n"
+        "• Chuỗi đ27úng <b>64</b> kaeý tự hex\n"
+        "• Ví dụ:\n41"
+        "<code>e3b0c44298fc1c149afbf4c8996fb924e4649b934ca495991b7852b855</code>"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
@@ -172,12 +226,13 @@ async def cmd_64(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def handle_hash(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     res = predict(text)
+
     if res.get("error"):
         msg = (
             "❌ <b>SAI ĐỊNH DẠNG!</b>\n"
             f"{LINE}\n"
-            "• MD5: đúng <b>32</b> ký tự hex\n"
-            "• SHA-256: đúng <b>64</b> ký tự hex\n\n"
+            "• MD5: đúng <b>32</b> ký tự hex (0-9, a-f)\n"
+            "• SHA-256: đúng <b>64</b> ký tự hex (0-9, a-f)\n\n"
             "👉 Gõ /32kitu hoặc /64kitu"
         )
         await update.message.reply_text(msg, parse_mode=ParseMode.HTML)
@@ -207,21 +262,20 @@ async def post_init(app: Application):
         BotCommand("start", "Bắt đầu"),
         BotCommand("32kitu", "Hướng dẫn MD5"),
         BotCommand("64kitu", "Hướng dẫn SHA-256"),
-        BotCommand("hotro", "Hỗ trợ Zalo"),
+        BotCommand("hotro", "Hỗ trợ Zalo + TikTok"),
+        BotCommand("tiktok", "TikTok gái xinh"),
         BotCommand("xoa", "Xoá tin nhắn bot"),
     ])
-    # Xoá webhook cũ nếu có
     await app.bot.delete_webhook(drop_pending_updates=True)
     logger.info("✅ Đã set commands + xoá webhook cũ")
 
 
 # ============================================================
-#   MAIN - WEBHOOK MODE
+#   MAIN
 # ============================================================
 def main():
-    if BOT_TOKEN == "DÁN_TOKEN_BOT_VÀO_ĐÂY":
+    if not BOT_TOKEN:
         raise SystemExit("⚠️ Chưa cấu hình BOT_TOKEN!")
-
     if not RENDER_URL:
         raise SystemExit("⚠️ Thiếu RENDER_EXTERNAL_URL!")
 
@@ -234,13 +288,14 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("hotro", cmd_hotro))
+    app.add_handler(CommandHandler("tiktok", cmd_tiktok))
     app.add_handler(CommandHandler("xoa", cmd_xoa))
     app.add_handler(CommandHandler("32kitu", cmd_32))
     app.add_handler(CommandHandler("64kitu", cmd_64))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_hash))
 
     webhook_url = f"{RENDER_URL}/{BOT_TOKEN}"
-    logger.info(f"🚀 Webhook: {RENDER_URL}")
+    logger.info(f"🚀 Webhook: {webhook_url}")
 
     app.run_webhook(
         listen="0.0.0.0",
