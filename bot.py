@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-# ============================================================
-#   LEMINH TOOL MD5 - VIP 2026 - FINAL v7.1
-#   Zalo: 0372834763
-#   Mode: Webhook
-# ============================================================
 import os
 import re
 import html
@@ -20,13 +15,18 @@ from telegram.ext import (
     ContextTypes,
 )
 
-BOT_TOKEN = os.getenv("8934734495:AAGVXUK0muIIPK2XYJhzxwHJoaZNbysc-UY", "")
+# ============================================================
+#   ⚠️ SỬA DÒNG DƯỚI ĐÂY - THAY TOKEN CỦA BẠN VÀO
+# ============================================================
+BOT_TOKEN = "8934734495:AAGVXUK0muIIPK2XYJhzxwHJoaZNbysc-UY"
+# ============================================================
+
 RENDER_URL = os.getenv("RENDER_EXTERNAL_URL", "")
 PORT = int(os.getenv("PORT", 10000))
 ZALO_PHONE = "0372834763"
 ZALO_URL = "https://zalo.me/" + ZALO_PHONE
-TIKTOK_URL = os.getenv("TIKTOK_URL", "https://www.tiktok.com/@gai.xinh.vn")
-SECRET_TOKEN = os.getenv("SECRET_TOKEN", "LEMINH_TOOL_VIP_2026_KEY")
+TIKTOK_URL = "https://www.tiktok.com/@gai.xinh.vn"
+SECRET_TOKEN = "LEMINH_TOOL_VIP_2026_KEY"
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -49,7 +49,7 @@ def detect_hash_type(h):
 def hash_to_score(h, htype):
     h = h.lower()
     weight = 41 if htype == "MD5" else 53
-    salt1 = "LEMINH_VIP_2026_V7"
+    salt1 = "LEMINH_VIP_2026_V8"
     salt2 = "SEED_" + str(len(h)) + "_" + str(weight)
     salt3 = "X9K2M7P4Q1"
     salt4 = "ROUND_" + hashlib.md5(h.encode()).hexdigest()[:8]
@@ -145,9 +145,7 @@ async def cmd_tiktok(update, ctx):
         [InlineKeyboardButton("🎵 Mở TikTok", url=TIKTOK_URL)]
     ])
     text = "🎵 <b>TIKTOK GÁI XINH</b>\n" + LINE + "\n" + TIKTOK_URL
-    await update.message.reply_text(
-        text, parse_mode=ParseMode.HTML, reply_markup=kb
-    )
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb)
 
 
 async def cmd_xoa(update, ctx):
@@ -229,14 +227,12 @@ async def post_init(app):
         BotCommand("xoa", "Xoá tin nhắn bot"),
     ])
     await app.bot.delete_webhook(drop_pending_updates=True)
-    logger.info("✅ Đã set commands + xoá webhook cũ")
+    logger.info("✅ Đã set commands")
 
 
 def main():
-    if not BOT_TOKEN:
-        raise SystemExit("⚠️ Chưa cấu hình BOT_TOKEN!")
-    if not RENDER_URL:
-        raise SystemExit("⚠️ Thiếu RENDER_EXTERNAL_URL!")
+    if BOT_TOKEN == "PASTE_TOKEN_VÀO_ĐÂY" or not BOT_TOKEN:
+        raise SystemExit("⚠️ Chưa nhập BOT_TOKEN vào code!")
     app = (
         Application.builder()
         .token(BOT_TOKEN)
